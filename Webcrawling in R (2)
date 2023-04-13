@@ -1,0 +1,164 @@
+# Xpath and Extraction with structured languages
+library(httr)
+library(XML)
+
+#Download the content of the page https://aviation-safety.net/database/, restructure it.
+url <- "https://aviation-safety.net/database/"
+
+page <- GET(url)
+#restructed
+tpage <- htmlParse(page)
+
+## Let's work on the links
+## How many links do you count on this page?
+length(xpathSApply(tpage, "//a"))
+
+## Extract the values that are hyperlinked
+values <- xpathSApply(tpage, "//a", xmlValue)
+values
+
+## Extract the links themselves
+link <- xpathSApply(tpage, "//a", xmlAttrs)
+link
+
+#What is the difference between what you did and this?
+class_link <-xpathSApply(tpage, "//a/@href")
+
+#Exercise: Plane Crash Database
+##Download the page for 1950 http://planecrashinfo.com/1950/1950.htm
+url <- 'http://planecrashinfo.com/1950/1950.htm'
+page <- GET(url)
+http_status(page)
+page
+
+#On some OS, you may get a "success" status, but not clear content.
+#Try the following line
+page2 <- GET(url) %>%content(type="text", encoding = "ISO-8859-1")
+
+#Write it on your hard drive
+setwd("SET THE PATH TO YOUR OWN REPOSITORY")
+writeLines(page2, "pageApril12.html")# Go check it
+
+#Restructure it
+tpage<- htmlParse(page2)
+
+#-----------------
+# Going by columns
+#-----------------
+# Get Xpaths
+
+# e.g. the table or a column of a table
+# what does the paths have in common?
+column1_row1 <- '//tr[1]/td[1]'
+column1_row2 <- '//tr[2]/td[1]'
+
+# Scrape the date
+xpathSApply(tpage, "//td[1]", xmlValue)
+date <- xpathSApply(tpage, "//td[1]", xmlValue)
+
+# Scrape the location/operator
+xpathSApply(tpage, "//td[2]", xmlValue)
+location <- xpathSApply(tpage, "//td[2]", xmlValue)
+
+# Scrape the Aircraft
+xpathSApply(tpage, "//td[3]", xmlValue)
+aircraft <- xpathSApply(tpage, "//td[3]", xmlValue)
+
+#Bind them together
+header <- c(date[1], location[1], aircraft[1])
+df <- data.frame(date = date[-1], location = location[-1], aircraft = aircraft[-1])
+names(df) <- header
+head(df)
+
+############## CAUTION
+# Look out for tables with missing values - they can cause problems!
+
+##Going by rows
+url2 <- "http://www.planecrashinfo.com/accidents.htm"
+
+#On some OS, you may have to write
+page <- GET(url2) %>% content(type="text", encoding = "ISO-8859-1")
+writeLines(page, "page2April12.htm")# Go check it
+
+tpage <- htmlParse(page)
+
+rows <- xpathSApply(tpage, '//tr')
+rows
+
+country <-xpathSApply(tpage,'//td[2]',xmlValue)
+last_crush <- xpathSApply(tpage,'//td[5]', xmlValue)
+
+tds <- xpathSApply(rows[[2]],'.//td',xmlValue)
+tds
+
+# df <- data.frame(country, last_crash)
+header <- c(country[1],last_crush[1])
+df <- data.frame(country = country[-1], last_crush = last_crush[-1])
+names(df) <- header
+head(df)
+
+###Select the information ***for the first node***
+node1 <- xpathSApply(tpage, "//tr[1]")[[1]]
+airline <- xpathSApply(tpage, "//td[1]") 
+
+## Note differences here between the 2
+
+### In this node, Extract the information for columns 1, 2, and 8 (note the ".")
+# airline
+cell1 <- xpathSApply(node1, ".//td[1]", xmlValue)
+# country
+cell2 <- xpathSApply(node1, ".//td[2]", xmlValue)
+# comments
+cell8 <- xpathSApply(node1, ".//td[8]", xmlValue)
+
+#Same thing for node 2
+node2 <- xpathSApply(tpage, "//tr[2]")[[1]]
+cell21 <- xpathSApply(node2, ".//td[1]", xmlValue)
+cell22 <- xpathSApply(node2, ".//td[2]", xmlValue)
+cell28 <- xpathSApply(node2, ".//td[8]", xmlValue)
+
+#Same thing for node 3
+node3 <- xpathSApply(tpage, "//tr[3]")[[1]]
+cell31 <- xpathSApply(node3, ".//td[1]", xmlValue)
+cell32 <- xpathSApply(node3, ".//td[2]", xmlValue)
+cell38 <- xpathSApply(node3, ".//td[8]", xmlValue)
+
+
+############################################################
+## Collect headlines on a newsmedia website
+### Go to https://www.svt.se/nyheter/ekonomi/, scrape the content (title, author), restructure
+
+#Get the page
+svt <- GET("https://www.svt.se/nyheter/ekonomi/")
+
+#Restructure
+tsvt <- htmlParse(svt)
+
+news <- xpathSApply(tsvt,'//article[contains(@class,"nyh_teaser")]')
+
+for(info in news) {
+  print(info)
+  links <- xpathSApply(info,'/a',xmlAttrs)
+}
+
+## Find the node (tip: start at the second one)
+node <- xpathSApply(tsvt, "//article[@class='nyh_teaser nyh_teaser--small']")[[2]]
+node
+
+### Get the title, and the subtitle
+title <- xpathSApply(node[[1]], ".//span[@class= 'nyh_teaser__heading-title']", xmlValue)
+title
+subtitle <- xpathSApply(node[[1]], ".//span[@class= 'nyh_teaser__vignette']", xmlValue)
+subtitle
+#Generalize
+
+
+###Devise a strategy in case one of these elements is missing
+if (length(title) == 0) {title <- NA}
+if (length(subtitle) == 0) {subtitle <- NA},.
+
+
+
+
+
+
